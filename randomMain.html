@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>توزيع العيدية</title>
+    <link rel="stylesheet" href="randomMain.css">
+</head>
+
+<body>
+
+    <div id="statusBar"></div>
+
+    <div class="card" id="setupCard">
+        <h2>🎁 توزيع العيدية</h2>
+
+        <div class="inputGroup">
+            <input type="number" id="total" required>
+            <label>المبلغ الكلي</label>
+        </div>
+
+        <div class="inputGroup">
+            <input type="number" id="kids" required>
+            <label>عدد الأطفال</label>
+        </div>
+
+        <div class="row">
+            <div class="inputGroup">
+                <input type="number" id="min" required>
+                <label>أقل مبلغ</label>
+            </div>
+
+            <div class="inputGroup">
+                <input type="number" id="max" required>
+                <label>أعلى مبلغ</label>
+            </div>
+        </div>
+
+        <button onclick="start()">ابدأ التوزيع 🎉</button>
+    </div>
+
+    <div id="numbersArea"></div>
+
+    <div id="result"></div>
+
+    <audio id="winSound" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+
+        let amounts = [];
+        let revealed = 0;
+        let results = [];
+
+        const totalInput = document.getElementById("total");
+        const kidsInput = document.getElementById("kids");
+        const minInput = document.getElementById("min");
+        const maxInput = document.getElementById("max");
+
+        const setupCard = document.getElementById("setupCard");
+        const numbersArea = document.getElementById("numbersArea");
+        const result = document.getElementById("result");
+        const statusBar = document.getElementById("statusBar");
+
+        function start() {
+
+            let total = +totalInput.value;
+            let kids = +kidsInput.value;
+            let min = +minInput.value;
+            let max = +maxInput.value;
+
+            if (!total || !kids || !min || !max) {
+                alert("عبّئ كل القيم");
+                return;
+            }
+
+            if (max < min) {
+                alert("أعلى مبلغ لازم يكون أكبر من أقل مبلغ");
+                return;
+            }
+
+            if (total < kids * min) {
+                alert("المبلغ غير كافي");
+                return;
+            }
+
+            if (total > kids * max) {
+                alert("المبلغ كبير بالنسبة للحد الأعلى");
+                return;
+            }
+
+            // توزيع صحيح
+            let remaining = total - (kids * min);
+            amounts = new Array(kids).fill(min);
+
+            for (let i = 0; i < kids; i++) {
+                if (remaining <= 0) break;
+                let maxAdd = Math.min(max - min, remaining);
+                let rand = Math.floor(Math.random() * (maxAdd + 1));
+                amounts[i] += rand;
+                remaining -= rand;
+            }
+
+            let i = 0;
+            while (remaining > 0) {
+                let canAdd = max - amounts[i];
+                let add = Math.min(canAdd, remaining);
+                amounts[i] += add;
+                remaining -= add;
+                i = (i + 1) % kids;
+            }
+
+            setupCard.style.display = "none";
+
+            result.classList.add("show");
+            result.innerHTML = `<div class="resultCard loading">🎁 جاري تجهيز العيديات...</div>`;
+
+            setTimeout(() => {
+                result.classList.remove("show");
+                renderNumbers(kids);
+                updateStatus();
+            }, 1500);
+
+        }
+
+        function renderNumbers(kids) {
+
+            numbersArea.innerHTML = "";
+
+            for (let i = 0; i < kids; i++) {
+                let num = document.createElement("div");
+                num.className = "num";
+                num.innerText = i + 1;
+                num.onclick = () => showResult(amounts[i], num);
+                numbersArea.appendChild(num);
+            }
+
+        }
+
+        function showResult(amount, el) {
+            result.innerHTML = "";
+            el.style.opacity = ".3";
+            el.style.transform = "scale(.8)";
+            el.style.pointerEvents = "none";
+
+            result.classList.add("show");
+
+            let count = 3;
+            let interval = setInterval(() => {
+                result.innerHTML = `<div class="resultCard loading">🎁 ${count}</div>`;
+                count--;
+
+                if (count < 0) {
+                    clearInterval(interval);
+                    revealAmount(amount);
+                }
+
+            }, 500);
+
+        }
+
+        function revealAmount(amount) {
+
+            document.getElementById("winSound").play();
+
+            confetti({ particleCount: 150, spread: 100 });
+
+            result.innerHTML = `
+<div class="resultCard">
+🎉 عيديتك 🎉
+<h1>${amount} ريال</h1>
+<button onclick="closeResult()">تم</button>
+</div>
+`;
+
+            revealed++;
+            results.push(amount);
+            updateStatus();
+
+            if (revealed === amounts.length) {
+                setTimeout(showEnd, 500);
+            }
+
+        }
+
+        function updateStatus() {
+            let left = amounts.length - revealed;
+            statusBar.innerHTML = `🎁 باقي ${left} عيديات`;
+        }
+
+        function showEnd() {
+            let max = Math.max(...results);
+
+            result.classList.add("show");
+
+            result.innerHTML = `
+<div class="resultCard">
+✨ انتهت العيدية ✨
+<h2>أعلى عيدية كانت ${max} ريال</h2>
+<button onclick="location.reload()">إعادة التوزيع</button>
+</div>
+`;
+        }
+        function closeResult() {
+            result.classList.remove("show");
+            result.innerHTML = "";
+        }
+    </script>
+
+</body>
+
+</html>
